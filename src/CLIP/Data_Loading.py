@@ -81,8 +81,3 @@ class Image_Text_Dataset(Dataset):
         sample = sample + [text]
         return sample #image(s), labels, text
 
-if __name__=='__main__':
-    train_dat = Image_Text_Dataset(source = 'mimic_cxr', group = 'conformal_train', synth=False, im_aug=3)
-    for i in np.arange(3333,3334):
-        result = train_dat.__getitem__(i)
-

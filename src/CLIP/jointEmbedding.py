@@ -70,17 +70,3 @@ class CNN_Similarity_Classifier(nn.Module):
             return self.softmax(class_score)
         else:
             return class_score
-
-if __name__ == '__main__':
-    je_model = JointEmbeddingModel(embed_dim=128).to(device)
-    mimic_dat = getDatasets(subset=['tinytrain'], augs=2)
-    [train_data_loader_mimic] = getLoaders(mimic_dat, subset=['tinytrain'], num_work=16)
-    params = list(je_model.parameters())
-    optimizer = torch.optim.Adam(params, lr=0.0001, weight_decay=0.000001)
-    tokenizer = Transformer.Report_Tokenizer()
-    je_model.train()
-    for i, res in enumerate(train_data_loader_mimic):
-        loss = train(je_model, res)
-        loss.backward()
-        optimizer.step()
-        break

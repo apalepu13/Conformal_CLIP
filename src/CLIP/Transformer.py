@@ -65,11 +65,3 @@ class Transformer_Embeddings(nn.Module):
         if self.embed_dim != 128:
             embeddings = self.linear1(embeddings)
         return embeddings
-
-if __name__ == '__main__':
-    tok = Report_Tokenizer()
-    te = Transformer_Embeddings(128)
-    toks = tok.encode(["Hi my name is Anil. I am a nice guy."])
-    embeds = te(toks)
-    print(te)
-    print(toks)
