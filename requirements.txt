@@ -1,0 +1,9 @@
+# external requirements
+tqdm~=4.61.1
+numpy>=1.19.0
+pandas
+transformers
+torch
+torchvision
+torchaudio
+matplotlib
