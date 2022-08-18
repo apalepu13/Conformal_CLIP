@@ -8,6 +8,13 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 def getDatasets(subset = ['train', 'val', 'test'], augs = 1,
                 heads = ['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis', 'Pleural Effusion'],
                 filters = [], frontal = False, lateral = False):
+    '''
+    Gets particular subsets of the MIMIC_CXR data
+    :param subset: which data subsets to extract  :param augs: number of im augs (need to update fns)
+    :param heads: which classification labels to extract
+    :param filters: which filters to use for images
+    :param frontal:get only frontal  :param lateral: get only lateral
+    '''
 
     if frontal:
         filters += ['frontal']
@@ -22,6 +29,11 @@ def getDatasets(subset = ['train', 'val', 'test'], augs = 1,
     return datlist
 
 def getLoaders(datasets, args=None, subset = ['train', 'val', 'test'], num_work = 16, shuffle=True):
+    '''
+    Gets Dataloaders for datasets
+    :param datasets returned by getDatasets:
+    :param args args.batch_size to specify batch size:
+    '''
     loaders = []
     for sub in subset:
         loaders.append(DataLoader(datasets[sub], batch_size=args.batch_size if args else 32, shuffle=shuffle, num_workers=num_work,
@@ -29,6 +41,9 @@ def getLoaders(datasets, args=None, subset = ['train', 'val', 'test'], num_work 
     return loaders
 
 def getExperiment(args, mp):
+    '''
+    Returns filepath to new experiment (or current if args.resume == True)
+    '''
     if args.debug:
         return "debug"
 
@@ -48,6 +63,11 @@ def getExperiment(args, mp):
     return fp
 
 def startExperiment(args, je_model, optimizer, fp):
+    '''
+    Loads current experiment or creates new experiment
+    je_model, optimizer is the architecture,optimizer to load weights into
+    fp is determined by getExperiment
+    '''
     if fp == "debug":
         return 0, 100000, args
 
@@ -78,7 +98,11 @@ def startExperiment(args, je_model, optimizer, fp):
                 text_file.write(txt)
     return start, best_val_loss, args
 
-def clip_loss(im_logits, text_logits, device, loss_weight = 1, criterion = nn.CrossEntropyLoss()):
+def clip_loss(im_logits, text_logits, loss_weight = 1, criterion = nn.CrossEntropyLoss()):
+    '''
+    Return loss using cosine similarities of batch of im/text embeddings (im_logits, text_logits)
+    loss_weight = scalar to multiply loss by
+    '''
     samp = torch.tensor(np.arange(im_logits.shape[0]))
     loss_a = criterion(im_logits, samp.to(device)) #1
     loss_b = criterion(text_logits, samp.to(device)) #1
@@ -87,6 +111,9 @@ def clip_loss(im_logits, text_logits, device, loss_weight = 1, criterion = nn.Cr
     return closs #1
 
 def train(je_model, im1, im2, texts, tokenizer):
+    '''
+    Forward pass for batch of (im1,im2,texts) using je_model
+    '''
     je_model.zero_grad(set_to_none=True)
     # Set mini-batch dataset
     images1 = im1.to(device)
@@ -103,6 +130,9 @@ def train(je_model, im1, im2, texts, tokenizer):
     return loss
 
 def validate(val_data_loader, tokenizer, je_model, proportion = 1.0):
+    '''
+    Forward pass for entire val dataset, returning avg val loss
+    '''
     vlosses = []
     with torch.no_grad():
         for j, (valims1, valims2, valDFs, valtexts) in enumerate(val_data_loader):
@@ -115,9 +145,9 @@ def validate(val_data_loader, tokenizer, je_model, proportion = 1.0):
             valtexts = tokenizer.encode(texts=valtexts).to(device)
             val_im1, val_t1 = je_model(valims1, valtexts)
             val_im2, val_t2 = je_model(valims2, valtexts)
-            myloss = clip_loss(val_im1, val_t1, device)
-            myloss += clip_loss(val_im2, val_t2, device)
-            myloss += clip_loss(val_im1, val_im2, device)
+            myloss = clip_loss(val_im1, val_t1)
+            myloss += clip_loss(val_im2, val_t2)
+            myloss += clip_loss(val_im1, val_im2)
             vlosses.append(myloss.cpu())
 
     vlloss = np.mean(np.array(vlosses))
@@ -125,6 +155,12 @@ def validate(val_data_loader, tokenizer, je_model, proportion = 1.0):
     return vlloss
 
 def b_loss(impreds, labels, heads, criterion):
+    '''
+    binary cross entropy loss for classifier predictions
+    impreds = prediction logits; N by len(heads)
+    labels = labels: N by len(heads)
+    heads = list of labels
+    '''
     losses = torch.zeros(len(heads))
     labels = getLabels(labels, heads)
     for i, h in enumerate(heads):
@@ -139,6 +175,11 @@ def b_loss(impreds, labels, heads, criterion):
     return loss
 
 def train_vision(vision_model, im1, im2, labels, heads, criterion=torch.nn.BCEWithLogitsLoss()):
+    '''
+    Forward pass for classifier training for batch of inputs/outputs
+    vision_model- classifier model, im1, im2= image inputs
+    label- dictionary of labels, heads = label keys
+    '''
     vision_model.zero_grad(set_to_none=True)
     images1 = im1.to(device)
     images2 = im2.to(device)
@@ -152,6 +193,10 @@ def train_vision(vision_model, im1, im2, labels, heads, criterion=torch.nn.BCEWi
     return loss
 
 def validate_vision(val_data_loader, vision_model, heads, criterion, proportion = 1.0):
+    '''
+    Forward pass for full val dataset for image classifier
+    Returns val loss
+    '''
     vlosses = []
     with torch.no_grad():
         for j, res in enumerate(val_data_loader):
@@ -172,6 +217,9 @@ def validate_vision(val_data_loader, vision_model, heads, criterion, proportion 
     return vlloss
 
 def getLabels(df, heads):
+    '''
+    Gets the labels specified by list heads from dictionary df into a tensor and returns it
+    '''
     labels = None
     for i, h in enumerate(heads):
         label = df[h].float()
@@ -187,6 +235,9 @@ def getLabels(df, heads):
     return labels
 
 def get_all_preds(DL, mod, heads = ['covid19', 'No Finding'], device='cuda'):
+    '''
+    From a given dataloader, returns a full list of predictions and labels using a given model "mod"
+    '''
     tp, tt = None, None
     for i, res in enumerate(DL):
         try:

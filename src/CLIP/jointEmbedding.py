@@ -4,6 +4,9 @@ from HelperFunctions import *
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class JointEmbeddingModel(nn.Module):
+    '''
+    Defines the CLIP model with specified embedding size
+    '''
     def __init__(self, embed_dim):
         super().__init__()
         self.cnn = CNN.CNN_Embeddings(embed_dim=embed_dim)
@@ -22,9 +25,15 @@ class JointEmbeddingModel(nn.Module):
         return logits_per_image, logits_per_text
 
 class CNN_Similarity_Classifier(nn.Module):
+    '''Defines a classifier based on a CLIP model that predicts w/ similarity of label-associated text embeddings'''
     def __init__(self, je_model, embed_size=128, freeze=True,
                  heads=np.array(['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis', 'Pleural Effusion']),
                  use_convirt=False, get_num=20,  soft=False):
+        '''
+        je_model: the trained CLIP model with given embed_size and frozen/unfrozen weights
+        heads- specify which text embeddings to extract, use_convirt to use descriptions provided by the convirt folks
+        get_num- number of descriptions per label, soft = apply softmax to similarity scores
+        '''
 
         super().__init__()
         self.cnn_model = je_model.cnn

@@ -16,7 +16,6 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def main(args):
-    criterion = nn.CrossEntropyLoss()
     je_model = JointEmbeddingModel(args.embed_size).to(device)
     params = list(je_model.parameters())
     optimizer = torch.optim.Adam(params, lr=args.learning_rate, weight_decay=0.000001)

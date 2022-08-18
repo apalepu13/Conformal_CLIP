@@ -3,7 +3,12 @@ import numpy as np
 import re
 from sklearn.model_selection import GroupShuffleSplit
 
-def getFilters(exp_path, overwrite = '', toprint=True): #return filters that were used to train an experiment, if possible
+def getFilters(exp_path, overwrite = '', toprint=True):
+    '''
+    return filters that were used to train an experiment, if possible
+    Looking for 'filters.txt' in the exp folder.
+    Alternatively, can overwrite the filters used
+    '''
     try:
         if overwrite is not '' and type(overwrite) == str:
             if toprint:
@@ -22,7 +27,10 @@ def getFilters(exp_path, overwrite = '', toprint=True): #return filters that wer
             print("No filter file found, none applied.")
         return []
 
-def getImList(group, fps, heads=['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis', 'Pleural Effusion'], filters = []):
+def getImList(group, fps, filters = []):
+    '''
+    Returns the dataframe of samples (il) to use and the root directory for the data
+    '''
     rd = fps['mimic_root_dir']
     il_labels = pd.read_csv(fps['mimic_chex_file'])
     il_meta = pd.read_csv(fps['mimic_meta_file']).loc[:, ['dicom_id', 'subject_id', 'study_id', 'ViewPosition']]
@@ -41,7 +49,10 @@ def getImList(group, fps, heads=['Cardiomegaly', 'Edema', 'Consolidation', 'Atel
     return il, rd
 
 
-def getSplits(df, group, sr='mimic_cxr'):
+def getSplits(df, group):
+    '''
+    Returns the data for a specified group (train/val/calib/test)
+    '''
     if 'tiny' in group:
         df = splitDF(df, 'subject_id', 0.01)[1]
 
@@ -61,6 +72,9 @@ def getSplits(df, group, sr='mimic_cxr'):
     return df
 
 def splitDF(df, patientID, testsize=0.2):
+    '''
+    Splitting data with given test size with all data from a given patient in one group
+    '''
     splitter = GroupShuffleSplit(test_size=testsize, n_splits=1, random_state=1)
     split = splitter.split(df, groups=df[patientID])
     train_inds, valtest_inds = next(split)
@@ -69,6 +83,10 @@ def splitDF(df, patientID, testsize=0.2):
     return train, test
 
 def textProcess(text):
+    '''
+    Code to extract relevant portion of clinical reports with regex
+    Currently, trying to extract findings and impression sections
+    '''
     sections = 'WET READ:|FINAL REPORT |INDICATION:|HISTORY:|STUDY:|COMPARISONS:|COMPARISON:|TECHNIQUE:|FINDINGS:|IMPRESSION:|NOTIFICATION:'
     mydict = {}
     labs = re.findall(sections, text)

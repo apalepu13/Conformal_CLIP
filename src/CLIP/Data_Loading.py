@@ -7,9 +7,17 @@ from torchvision import transforms, utils
 
 
 class Image_Text_Dataset(Dataset):
-    """Chx - Report dataset.""" #d
+    '''
+    Specifies the dataset class for MIMIC_CXR images, texts and labels
+    '''
     def __init__(self, group='train', im_aug = 2,
                  out_heads = ['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis', 'Pleural Effusion'], filters = []):
+        '''
+        group = which subset to extract from mimic_cxr
+        im_aug = number of image augmentations
+        out_heads = which labels to extract
+        filters = which subset of images to include. [] for all, ['frontal'] & ['lateral'] are other options
+        '''
         # filepaths
         fps = {}
         fps['mimic_root_dir'] = '/n/data2/hms/dbmi/beamlab/mimic_cxr/'
@@ -43,8 +51,7 @@ class Image_Text_Dataset(Dataset):
             transforms.ToTensor()
         ])
 
-        self.im_list, self.root_dir = getImList(group = self.group, fps = fps,
-                                                heads = self.heads, filters = filters)
+        self.im_list, self.root_dir = getImList(group = self.group, fps = fps, filters = filters)
         print("MIMIC CXR", group + " size= " + str(self.im_list.shape))
 
     def __len__(self):
