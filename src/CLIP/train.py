@@ -84,7 +84,7 @@ def main(args):
                                 'optimizer_state_dict': optimizer.state_dict(),
                                 'val_loss': val_loss,
                                 'best_val_loss':best_val_loss,
-                                'args': args}, os.path.join(fp, 'je_model-{}.pt'.format(epoch)))
+                                'args': args}, os.path.join(fp, 'best_model.pt'.format(epoch)))
 
             print("Val time " + str(time.time() - tval))
 
