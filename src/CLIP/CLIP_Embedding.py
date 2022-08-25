@@ -1,7 +1,7 @@
 from torch import nn
 import torch
 import Vision_Model
-import MedCLIP_Datasets
+from MedDataHelpers import *
 from transformers import AutoTokenizer, AutoModel
 import numpy as np
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -66,11 +66,22 @@ class MedCLIP(nn.Module):
 
 
 if __name__=='__main__':
-    model = MedCLIP()
-    dat = MedCLIP_Datasets.MedDataset(source = 'mimic_cxr', group='tinytrain', im_aug = 2,
+    model = MedCLIP().to(device)
+    checkpoint = torch.load('/n/data2/hms/dbmi/beamlab/anil/Conformal_CLIP/models/CLIP_model/exp2/best_model.pt', map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    datasets = getDatasets('mimic_cxr', subset=['train', 'val', 'calib', 'test'], filters=['frontal'])
+    dl = getLoaders(datasets)
+    for i, samples in enumerate(dl['calib']):
+        il, augl = model(samples['images'], samples['texts'])
+        print(il, augl)
+        break
+    '''
+    dat = MedCLIP_Datasets.MedDataset(source = 'mimic_cxr', group='conformal', im_aug = 1,
                  out_heads = ['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis', 'Pleural Effusion'],
                  filters = [])
-    res = dat.__getitem__(3033)
+    res = dat.__getitem__(1)
     ims = res['images']
     text = res['texts']
     il, augl = model(ims, text)
+    print(il, augl)
+    '''

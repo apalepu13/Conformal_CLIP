@@ -1,6 +1,8 @@
 import torch
+import os
+import numpy as np
 from PIL import Image
-from MedDataHelpers import *
+import MedDataHelpers
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -51,7 +53,7 @@ class MedDataset(Dataset):
             transforms.ToTensor()
         ])
 
-        self.im_list, self.root_dir = getImList(sr = self.source, group = self.group, fps = fps,
+        self.im_list, self.root_dir = MedDataHelpers.getImList(sr = self.source, group = self.group, fps = fps,
                                                 heads = self.heads, filters = filters)
         print(self.source, group + " size= " + str(self.im_list.shape))
 
@@ -78,7 +80,7 @@ class MedDataset(Dataset):
             with open(text_name, "r") as text_file:
                 text = text_file.read()
             text = text.replace('\n', '')
-            text = textProcess(text)
+            text = MedDataHelpers.textProcess(text)
             sample['images'] = images
             sample['labels'] = df.to_dict()
             sample['texts'] = text #ims, df, text
@@ -132,7 +134,7 @@ class MedDataset(Dataset):
             sample['lung_mask'] = lung_mask
 
 if __name__=='__main__':
-    train_dat = MedCLIP_Datasets.MedDataset(source = 'mimic_cxr', group = 'train', im_aug=3)
+    train_dat = MedDataset(source = 'mimic_cxr', group = 'train', im_aug=3)
     for i in np.arange(3333,3336):
         result = train_dat.__getitem__(i)
         print(result['labels'])
