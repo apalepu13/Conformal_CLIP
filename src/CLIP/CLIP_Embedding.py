@@ -41,8 +41,8 @@ class MedCLIP(nn.Module):
         images = [im.to(device) for im in images]
 
         token_output = self.tokenizer.batch_encode_plus(batch_text_or_text_pairs=text,
-                                               add_special_tokens=True,
-                                               padding='longest',
+                                               add_special_tokens=True, truncation=True,
+                                               padding='longest', max_length=256,
                                                return_tensors='pt').to(device)
         text_emb = self.transformer.get_projected_text_embeddings(input_ids=token_output.input_ids,
                                                          attention_mask=token_output.attention_mask).to(device)
