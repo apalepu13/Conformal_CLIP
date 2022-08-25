@@ -64,24 +64,33 @@ class MedCLIP(nn.Module):
                     aug_logits.append(imsims)
         return im_logits, aug_logits #list per im,, #list per im-im pair
 
+def getEmbeddings(model, samples):
+    images = samples['images']
+    texts = samples['texts']
+    token_output = model.tokenizer.batch_encode_plus(batch_text_or_text_pairs=texts,
+                                               add_special_tokens=True, truncation=True,
+                                               padding='longest', max_length=256,
+                                               return_tensors='pt').to(device)
+
+    text_embs = model.transformer.get_projected_text_embeddings(input_ids=token_output.input_ids,
+                                                                  attention_mask=token_output.attention_mask).to(device)
+    all_im_embs = []
+    if len(images) == 1:
+        return model.cnn(images[0].to(device)).projected_global_embedding, text_embs
+
+    for j, image in enumerate(images):
+        im_embs = model.cnn(image.to(device)).projected_global_embedding
+        all_im_embs.append(im_embs)
+
+    return all_im_embs, text_embs #list of image embeddings, text embeddings
+
 
 if __name__=='__main__':
     model = MedCLIP().to(device)
     checkpoint = torch.load('/n/data2/hms/dbmi/beamlab/anil/Conformal_CLIP/models/CLIP_model/exp2/best_model.pt', map_location=device)
     model.load_state_dict(checkpoint['model_state_dict'])
-    datasets = getDatasets('mimic_cxr', subset=['train', 'val', 'calib', 'test'], filters=['frontal'])
+    datasets = getDatasets('mimic_cxr', subset=['tinytrain', 'tinyval', 'tinycalib', 'tinytest'], filters=['frontal'], augs=1)
     dl = getLoaders(datasets)
-    for i, samples in enumerate(dl['calib']):
-        il, augl = model(samples['images'], samples['texts'])
-        print(il, augl)
-        break
-    '''
-    dat = MedCLIP_Datasets.MedDataset(source = 'mimic_cxr', group='conformal', im_aug = 1,
-                 out_heads = ['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis', 'Pleural Effusion'],
-                 filters = [])
-    res = dat.__getitem__(1)
-    ims = res['images']
-    text = res['texts']
-    il, augl = model(ims, text)
-    print(il, augl)
-    '''
+    for i, samples in enumerate(dl['tinycalib']):
+        im_embs, text_embs = getEmbeddings(model, samples)
+        print(im_embs.shape, text_embs.shape)
