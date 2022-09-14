@@ -29,14 +29,14 @@ def getDatasets(source, subset = ['train', 'val', 'test'], augs = 1,
         datlist[sub] = mydat
     return datlist
 
-def getLoaders(datasets, args=None, shuffle=True):
+def getLoaders(datasets, batchsize = 32, args=None, shuffle=True):
     '''
     Returns dataloaders for each dataset in datasets
     '''
     subset = datasets.keys()
     num_work = min(os.cpu_count(), 16)
     num_work = num_work if num_work > 1 else 0
-    batch_size = args.batch_size if args else 32
+    batch_size = batchsize
     prefetch_factor = 2
     loaders = {}
     for sub in subset:

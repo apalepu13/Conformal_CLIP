@@ -64,25 +64,49 @@ class MedCLIP(nn.Module):
                     aug_logits.append(imsims)
         return im_logits, aug_logits #list per im,, #list per im-im pair
 
-def getEmbeddings(model, samples):
+def getEmbeddings(model, samples, text=True):
     images = samples['images']
-    texts = samples['texts']
-    token_output = model.tokenizer.batch_encode_plus(batch_text_or_text_pairs=texts,
+    if text==True:
+        texts = samples['texts']
+        token_output = model.tokenizer.batch_encode_plus(batch_text_or_text_pairs=texts,
+                                                   add_special_tokens=True, truncation=True,
+                                                   padding='longest', max_length=256,
+                                                   return_tensors='pt').to(device)
+
+        text_embs = model.transformer.get_projected_text_embeddings(input_ids=token_output.input_ids,
+                                                                      attention_mask=token_output.attention_mask).to(device)
+        all_im_embs = []
+        if len(images) == 1:
+            return model.cnn(images[0].to(device)).projected_global_embedding, text_embs
+
+        for j, image in enumerate(images):
+            im_embs = model.cnn(image.to(device)).projected_global_embedding
+            all_im_embs.append(im_embs)
+
+        return all_im_embs, text_embs #list of image embeddings, text embeddings
+    else:
+        all_im_embs = []
+        if len(images) == 1:
+            return model.cnn(images[0].to(device)).projected_global_embedding
+
+        for j, image in enumerate(images):
+            im_embs = model.cnn(image.to(device)).projected_global_embedding
+            all_im_embs.append(im_embs)
+
+        return all_im_embs
+        
+
+def get_text_embedding(model, text):
+    token_output = model.tokenizer.batch_encode_plus(batch_text_or_text_pairs=[text],
                                                add_special_tokens=True, truncation=True,
                                                padding='longest', max_length=256,
                                                return_tensors='pt').to(device)
 
     text_embs = model.transformer.get_projected_text_embeddings(input_ids=token_output.input_ids,
                                                                   attention_mask=token_output.attention_mask).to(device)
-    all_im_embs = []
-    if len(images) == 1:
-        return model.cnn(images[0].to(device)).projected_global_embedding, text_embs
+    return text_embs[0]
 
-    for j, image in enumerate(images):
-        im_embs = model.cnn(image.to(device)).projected_global_embedding
-        all_im_embs.append(im_embs)
-
-    return all_im_embs, text_embs #list of image embeddings, text embeddings
+    
 
 
 if __name__=='__main__':
