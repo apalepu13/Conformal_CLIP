@@ -46,7 +46,7 @@ def startExperiment(args, fp):
     Initialize variables for experiment:
     start (epoch), je_model, params, optimizer, best_val_loss
     '''
-    je_model = CLIP_Embedding.MedCLIP().to(device)
+    je_model = CLIP_Embedding.MedCLIP(pretrained=True).to(device)
     params = list(je_model.parameters())
     optimizer = torch.optim.Adam(params, lr=args.learning_rate, weight_decay=0.000001)
     if fp == "debug":
@@ -141,6 +141,12 @@ def validate(val_data_loader, je_model, args):
     assert avg_losses.shape == all_losses.shape
     if avg_losses.shape[0] == 3:
         names = ['im1-t', 'im2-t', 'im1-im2']
+        lossstr = ""
+        for i in range(len(names)):
+            lossstr += (", " + names[i] + ": " + str(avg_losses[i].item()))
+        print("Val losses" + lossstr)
+    elif avg_losses.shape[0] == 1:
+        names = ['im1-t']
         lossstr = ""
         for i in range(len(names)):
             lossstr += (", " + names[i] + ": " + str(avg_losses[i].item()))

@@ -5,10 +5,11 @@ import MedCLIP_Datasets
 from torch.utils.data import Dataset, DataLoader
 import re
 from sklearn.model_selection import GroupShuffleSplit
+import Report_Parser
 
 def getDatasets(source, subset = ['train', 'val', 'test'], augs = 1,
                 heads = ['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis', 'Pleural Effusion'],
-                filters = [], frontal = False, lateral = False):
+                filters = [], frontal = False, lateral = False, train_mode=False):
     '''
     Returns a dictionary of ImageText_Dataset subsets from a given source
     Can specify synthetic/real data, #augmentations, any filters, and relevant labels
@@ -25,7 +26,7 @@ def getDatasets(source, subset = ['train', 'val', 'test'], augs = 1,
     if type(subset) == str:
         subset = [subset]
     for sub in subset:
-        mydat = MedCLIP_Datasets.MedDataset(source=s, group=sub, out_heads = heads, im_aug = augs, filters = filters)
+        mydat = MedCLIP_Datasets.MedDataset(source=s, group=sub, out_heads = heads, im_aug = augs, filters = filters,train_mode=train_mode)
         datlist[sub] = mydat
     return datlist
 
@@ -88,6 +89,15 @@ def getImList(sr, group, fps, heads=['Cardiomegaly', 'Edema', 'Consolidation', '
         il['pGroup'] = np.array(["p" + pg[:2] for pg in il['subject_id'].values.astype(str)])
         il['pName'] = np.array(["p" + pn for pn in il['subject_id'].values.astype(str)])
         il['sName'] = np.array(["s" + sn for sn in il['study_id'].values.astype(str)])
+
+        if 'findings' in filters:
+            il['text'] = il.apply(lambda row: Report_Parser.parse_report(row, rd, findings_only=True), axis=1)
+        elif 'impression' in filters:
+            il['text'] = il.apply(lambda row: Report_Parser.parse_report(row, rd, impression_only=True), axis=1)
+        else:
+            il['text'] = il.apply(lambda row: Report_Parser.parse_report(row, rd, findings_impressions=True), axis=1)
+        il = il[il['text'] != ""]
+
         if sr == 'mscxr':
             ms_il = pd.read_csv(rd + "ms-cxr/MS_CXR_Local_Alignment_v1.0.0.csv")
             ms_il['pGroup'] = np.array([pg[6:9] for pg in ms_il['path'].values.astype(str)])
@@ -197,41 +207,3 @@ def splitDF(df, patientID, testsize=0.2):
     train = df.iloc[train_inds]
     test = df.iloc[valtest_inds]
     return train, test
-
-
-def textProcess(text):
-    '''
-    Code to extract relevant portion of clinical reports with regex
-    Currently, trying to extract findings and impression sections
-    '''
-    sections = 'WET READ:|FINAL REPORT |INDICATION:|HISTORY:|STUDY:|COMPARISONS:|COMPARISON:|TECHNIQUE:|FINDINGS:|IMPRESSION:|NOTIFICATION:'
-    mydict = {}
-    labs = re.findall(sections, text)
-    splits = re.split(sections, text)
-    for i, l in enumerate(splits):
-        if i == 0:
-            continue
-        else:
-            if len(splits[i]) > 50 or labs[i - 1] == 'IMPRESSION:':
-                mydict[labs[i - 1]] = splits[i]
-
-    if 'FINDINGS:' in mydict.keys():
-        if 'IMPRESSION:' in mydict.keys():
-            mystr = "FINDINGS: " + mydict['FINDINGS:'] + "IMPRESSION: " + mydict['IMPRESSION:']
-        else:
-            mystr = "FINDINGS: " + mydict['FINDINGS:']
-    else:
-        mystr = ""
-        if 'COMPARISONS:' in mydict.keys():
-            mystr = mystr + "COMPARISONS: " + mydict['COMPARISONS:']
-        if 'COMPARISON:' in mydict.keys():
-            mystr = mystr + "COMPARISONS: " + mydict['COMPARISON:']
-        if 'IMPRESSION:' in mydict.keys():
-            mystr = mystr + "IMPRESSION: " + mydict['IMPRESSION:']
-    if len(mystr) > 80:
-        return mystr
-    else:
-        if 'FINAL REPORT ' in mydict.keys() and len(mydict['FINAL REPORT ']) > 40:
-            return mydict['FINAL REPORT '] + mystr
-        else:
-            return text

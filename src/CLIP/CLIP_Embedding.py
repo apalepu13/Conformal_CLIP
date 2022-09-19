@@ -7,10 +7,10 @@ import numpy as np
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class MedCLIP(nn.Module):
-    def __init__(self, freeze_transformer=True):
+    def __init__(self, freeze_transformer=True, pretrained=True):
         super().__init__()
         url = "microsoft/BiomedVLP-CXR-BERT-specialized"
-        self.cnn = Vision_Model.get_biovil_resnet()
+        self.cnn = Vision_Model.get_biovil_resnet(pretrained=pretrained)
         self.tokenizer = AutoTokenizer.from_pretrained(url, trust_remote_code=True)
         self.transformer = AutoModel.from_pretrained(url, trust_remote_code=True)
 

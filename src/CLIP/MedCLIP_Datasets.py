@@ -9,7 +9,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class MedDataset(Dataset):
     """Chx - Report dataset.""" #d
-    def __init__(self, source = 'mimic_cxr', group='train', im_aug = 1, do_augment=False,
+    def __init__(self, source = 'mimic_cxr', group='train', im_aug = 1, train_mode=False,
                  out_heads = ['Cardiomegaly', 'Edema', 'Consolidation', 'Atelectasis', 'Pleural Effusion'],
                  filters = []):
         # filepaths
@@ -31,7 +31,7 @@ class MedDataset(Dataset):
         self.source = (sourceDict[source] if source in sourceDict.keys() else source)
         self.group = group
         self.im_aug = im_aug
-        self.do_augment = do_augment or (im_aug > 1) #whether to do image augmentation
+        self.train_mode = train_mode
 
         # Image processing
         self.im_preprocessing_train = transforms.Compose([
@@ -70,18 +70,13 @@ class MedDataset(Dataset):
             img_name = os.path.join(self.root_dir, ims['pGroup'], ims['pName'], ims['sName'], ims['dicom_id'] + '.jpg')
             image = Image.open(img_name).convert("RGB")
             df = ims.loc[self.heads]
-            if self.group == 'test' or self.source == 'mscxr' or self.do_augment:
+            if self.group == 'test' or self.source == 'mscxr' or not self.train_mode:
                 images = [self.im_preprocessing_test(image) for i in range(self.im_aug)]
             else:
                 images = [self.im_preprocessing_train(image) for i in range(self.im_aug)]
 
             images = [self.im_finish(im) for im in images]
-
-            text_name = os.path.join(self.root_dir, ims['pGroup'], ims['pName'], ims['sName'], ims['sName'] + '.txt')
-            with open(text_name, "r") as text_file:
-                text = text_file.read()
-            text = text.replace('\n', '')
-            text = MedDataHelpers.textProcess(text)
+            text = ims['text']
             sample['images'] = images
             sample['labels'] = df.to_dict()
             sample['texts'] = text #ims, df, text
